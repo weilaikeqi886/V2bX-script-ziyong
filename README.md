@@ -11,8 +11,13 @@ Find the source code here: [InazumaV/V2bX](https://github.com/InazumaV/V2bX)
 
 [教程](https://v2bx.v-50.me/)
 
-# 一键安装
+# 原版一键安装
 
 ```
 wget -N https://raw.githubusercontent.com/wyx2685/V2bX-script/master/install.sh && bash install.sh
+```
+# 自己的一键安装
+
+```
+wget -N https://raw.githubusercontent.com/weilaikeqi886/V2bX-script-ziyong/master/install.sh && bash install.sh
 ```
