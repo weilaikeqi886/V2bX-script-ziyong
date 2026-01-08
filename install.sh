@@ -131,16 +131,21 @@ install_V2bX() {
     mkdir /usr/local/V2bX/ -p
     cd /usr/local/V2bX/
 
+    # --- 修改点 1: 获取版本和二进制文件下载地址 ---
+    # 如果你的 Releases 也是在 ziyong 仓库，请确保你已经上传了打包好的 zip 文件
     if  [ $# == 0 ] ;then
-        last_version=$(curl -Ls "https://api.github.com/repos/wyx2685/V2bX/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        last_version=$(curl -Ls "https://api.github.com/repos/weilaikeqi886/V2bX-script-ziyong/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
         if [[ ! -n "$last_version" ]]; then
-            echo -e "${red}检测 V2bX 版本失败，可能是超出 Github API 限制，请稍后再试，或手动指定 V2bX 版本安装${plain}"
-            exit 1
+            # 备选方案：如果 ziyong 仓库没发过版，依然去拉取原版程序，但脚本使用你自己的
+            last_version=$(curl -Ls "https://api.github.com/repos/wyx2685/V2bX/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
         fi
-        echo -e "检测到 V2bX 最新版本：${last_version}，开始安装"
+        
+        echo -e "检测到 V2bX 版本：${last_version}，开始安装"
+        # 这里默认从原版获取程序，如果你 ziyong 仓库有 Release，请修改下方地址中的 wyx2685 为 weilaikeqi886
         wget --no-check-certificate -N --progress=bar -O /usr/local/V2bX/V2bX-linux.zip https://github.com/wyx2685/V2bX/releases/download/${last_version}/V2bX-linux-${arch}.zip
+        
         if [[ $? -ne 0 ]]; then
-            echo -e "${red}下载 V2bX 失败，请确保你的服务器能够下载 Github 的文件${plain}"
+            echo -e "${red}下载 V2bX 失败${plain}"
             exit 1
         fi
     else
@@ -148,10 +153,6 @@ install_V2bX() {
         url="https://github.com/wyx2685/V2bX/releases/download/${last_version}/V2bX-linux-${arch}.zip"
         echo -e "开始安装 V2bX $1"
         wget --no-check-certificate -N --progress=bar -O /usr/local/V2bX/V2bX-linux.zip ${url}
-        if [[ $? -ne 0 ]]; then
-            echo -e "${red}下载 V2bX $1 失败，请确保此版本存在${plain}"
-            exit 1
-        fi
     fi
 
     unzip V2bX-linux.zip
@@ -160,28 +161,26 @@ install_V2bX() {
     mkdir /etc/V2bX/ -p
     cp geoip.dat /etc/V2bX/
     cp geosite.dat /etc/V2bX/
+    
+    # ... (中间系统服务设置部分不需要改动) ...
     if [[ x"${release}" == x"alpine" ]]; then
         rm /etc/init.d/V2bX -f
         cat <<EOF > /etc/init.d/V2bX
 #!/sbin/openrc-run
-
 name="V2bX"
 description="V2bX"
-
 command="/usr/local/V2bX/V2bX"
 command_args="server"
 command_user="root"
-
 pidfile="/run/V2bX.pid"
 command_background="yes"
-
 depend() {
         need net
 }
 EOF
         chmod +x /etc/init.d/V2bX
         rc-update add V2bX default
-        echo -e "${green}V2bX ${last_version}${plain} 安装完成，已设置开机自启"
+        echo -e "${green}V2bX ${last_version}${plain} 安装完成"
     else
         rm /etc/systemd/system/V2bX.service -f
         cat <<EOF > /etc/systemd/system/V2bX.service
@@ -209,13 +208,13 @@ EOF
         systemctl daemon-reload
         systemctl stop V2bX
         systemctl enable V2bX
-        echo -e "${green}V2bX ${last_version}${plain} 安装完成，已设置开机自启"
+        echo -e "${green}V2bX ${last_version}${plain} 安装完成"
     fi
 
     if [[ ! -f /etc/V2bX/config.json ]]; then
         cp config.json /etc/V2bX/
         echo -e ""
-        echo -e "全新安装，请先参看教程：https://v2bx.v-50.me/，配置必要的内容"
+        echo -e "全新安装，请先参看教程进行配置"
         first_install=true
     else
         if [[ x"${release}" == x"alpine" ]]; then
@@ -225,59 +224,30 @@ EOF
         fi
         sleep 2
         check_status
-        echo -e ""
-        if [[ $? == 0 ]]; then
-            echo -e "${green}V2bX 重启成功${plain}"
-        else
-            echo -e "${red}V2bX 可能启动失败，请稍后使用 V2bX log 查看日志信息，若无法启动，则可能更改了配置格式，请前往 wiki 查看：https://github.com/V2bX-project/V2bX/wiki${plain}"
-        fi
         first_install=false
     fi
 
-    if [[ ! -f /etc/V2bX/dns.json ]]; then
-        cp dns.json /etc/V2bX/
-    fi
-    if [[ ! -f /etc/V2bX/route.json ]]; then
-        cp route.json /etc/V2bX/
-    fi
-    if [[ ! -f /etc/V2bX/custom_outbound.json ]]; then
-        cp custom_outbound.json /etc/V2bX/
-    fi
-    if [[ ! -f /etc/V2bX/custom_inbound.json ]]; then
-        cp custom_inbound.json /etc/V2bX/
-    fi
-    curl -o /usr/bin/V2bX -Ls https://raw.githubusercontent.com/wyx2685/V2bX-script/master/V2bX.sh
+    if [[ ! -f /etc/V2bX/dns.json ]]; then cp dns.json /etc/V2bX/; fi
+    if [[ ! -f /etc/V2bX/route.json ]]; then cp route.json /etc/V2bX/; fi
+    if [[ ! -f /etc/V2bX/custom_outbound.json ]]; then cp custom_outbound.json /etc/V2bX/; fi
+    if [[ ! -f /etc/V2bX/custom_inbound.json ]]; then cp custom_inbound.json /etc/V2bX/; fi
+
+    # --- 修改点 2: 关键点！下载管理脚本 V2bX.sh 指向你的仓库 ---
+    curl -o /usr/bin/V2bX -Ls https://raw.githubusercontent.com/weilaikeqi886/V2bX-script-ziyong/master/V2bX.sh
     chmod +x /usr/bin/V2bX
     if [ ! -L /usr/bin/v2bx ]; then
         ln -s /usr/bin/V2bX /usr/bin/v2bx
         chmod +x /usr/bin/v2bx
     fi
+
     cd $cur_dir
     rm -f install.sh
-    echo -e ""
-    echo "V2bX 管理脚本使用方法 (兼容使用V2bX执行，大小写不敏感): "
-    echo "------------------------------------------"
-    echo "V2bX              - 显示管理菜单 (功能更多)"
-    echo "V2bX start        - 启动 V2bX"
-    echo "V2bX stop         - 停止 V2bX"
-    echo "V2bX restart      - 重启 V2bX"
-    echo "V2bX status       - 查看 V2bX 状态"
-    echo "V2bX enable       - 设置 V2bX 开机自启"
-    echo "V2bX disable      - 取消 V2bX 开机自启"
-    echo "V2bX log          - 查看 V2bX 日志"
-    echo "V2bX x25519       - 生成 x25519 密钥"
-    echo "V2bX generate     - 生成 V2bX 配置文件"
-    echo "V2bX update       - 更新 V2bX"
-    echo "V2bX update x.x.x - 更新 V2bX 指定版本"
-    echo "V2bX install      - 安装 V2bX"
-    echo "V2bX uninstall    - 卸载 V2bX"
-    echo "V2bX version      - 查看 V2bX 版本"
-    echo "------------------------------------------"
-    # 首次安装询问是否生成配置文件
+
+    # --- 修改点 3: 首次安装配置脚本指向你的仓库 ---
     if [[ $first_install == true ]]; then
         read -rp "检测到你为第一次安装V2bX,是否自动直接生成配置文件？(y/n): " if_generate
         if [[ $if_generate == [Yy] ]]; then
-            curl -o ./initconfig.sh -Ls https://raw.githubusercontent.com/wyx2685/V2bX-script/master/initconfig.sh
+            curl -o ./initconfig.sh -Ls https://raw.githubusercontent.com/weilaikeqi886/V2bX-script-ziyong/master/initconfig.sh
             source initconfig.sh
             rm initconfig.sh -f
             generate_config_file
